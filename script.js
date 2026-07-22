@@ -616,8 +616,7 @@ function registrarServidor(posicion,tipo){
 
             if(respuesta.ok){
 
-                document.getElementById("mensaje").innerHTML =
-                "<span class='correcto'>✔ "+respuesta.mensaje+"</span>";
+                mostrarTarjetaExito(true, respuesta.mensaje);
 
                 document.getElementById("nombre").value="";
                 document.getElementById("listaNombres").style.display="none";
@@ -625,8 +624,7 @@ function registrarServidor(posicion,tipo){
 
             }else{
 
-                document.getElementById("mensaje").innerHTML =
-                "<span class='error'>"+respuesta.mensaje+"</span>";
+                mostrarTarjetaExito(false, respuesta.mensaje);
 
             }
 
@@ -634,8 +632,7 @@ function registrarServidor(posicion,tipo){
 
         .catch(function(err){
 
-            document.getElementById("mensaje").innerHTML =
-            "<span class='error'>"+err.message+"</span>";
+            mostrarTarjetaExito(false, err.message);
 
         });
 
