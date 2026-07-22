@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <title>Asistencia JYMDA</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A3D91">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <!-- ENCABEZADO -->
+
+    <div class="header">
+
+        <!-- TODO: reemplaza esto por tu logo real (sube tu archivo como logo.png a esta misma carpeta) -->
+        <img id="logo" src="logo.png" alt="JYMDA" onerror="this.style.display='none'">
+
+        <h1>JYMDA INGENIEROS S.A.C.</h1>
+
+        <p class="subtitulo" id="subtitulo">
+            CONTROL DE ASISTENCIA
+        </p>
+
+    </div>
+
+
+    <!-- FECHA Y HORA (siempre visible, en ambas pestañas) -->
+
+    <div class="reloj">
+
+        <div id="fecha"></div>
+
+        <div id="hora"></div>
+
+    </div>
+
+
+    <!-- PESTAÑAS -->
+
+    <div class="tabsAsistencia">
+
+        <button class="tabBtnAsistencia activo" id="tabBtnPrograma" onclick="cambiarTabAsistencia('programa')">
+            📋 Mi Programación
+        </button>
+
+        <button class="tabBtnAsistencia" id="tabBtnRegistrar" onclick="cambiarTabAsistencia('registrar')">
+            ✅ Registrar Asistencia
+        </button>
+
+    </div>
+
+
+    <!-- ======================================================
+         PESTAÑA 1: MI PROGRAMACIÓN
+    ======================================================= -->
+
+    <div id="panelPrograma" class="panelTabAsistencia">
+
+        <div class="grupo">
+
+            <label>Selecciona tu nombre</label>
+
+            <input
+                type="text"
+                id="nombreConsulta"
+                autocomplete="off"
+                placeholder="Buscar tu nombre...">
+
+            <div id="listaNombresConsulta"></div>
+
+        </div>
+
+        <div id="resultadoProgramacion" style="display:none;">
+
+            <div class="tarjetaDia" id="tarjetaHoy"></div>
+
+            <div class="tarjetaDia" id="tarjetaManana"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         PESTAÑA 2: REGISTRAR ASISTENCIA
+    ======================================================= -->
+
+    <div id="panelRegistrar" class="panelTabAsistencia" style="display:none;">
+
+        <!-- TRABAJADOR -->
+
+        <div class="grupo">
+
+            <label>
+
+                Trabajador
+
+            </label>
+
+            <input
+                type="text"
+                id="nombre"
+                autocomplete="off"
+                placeholder="Buscar nombre...">
+
+            <div id="listaNombres"></div>
+
+            <!-- actividad / programación del día -->
+            <div id="programacionHoy"></div>
+
+        </div>
+
+
+        <!-- UBICACION -->
+
+        <div class="estadoGPS">
+
+            📍 Ubicación
+
+            <span id="gps">
+
+                Esperando...
+
+            </span>
+
+        </div>
+
+
+        <!-- BOTONES -->
+
+        <div class="botones">
+
+            <button
+                class="btnIngreso"
+                onclick="registrar('Ingreso')">
+
+                REGISTRAR INGRESO
+
+            </button>
+
+
+            <button
+                class="btnSalida"
+                onclick="registrar('Salida')">
+
+                REGISTRAR SALIDA
+
+            </button>
+
+        </div>
+
+
+        <!-- MENSAJES -->
+
+        <div id="mensaje"></div>
+
+    </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="script.js"></script>
+
+</body>
+
+</html>
