@@ -637,3 +637,35 @@ function registrarServidor(posicion,tipo){
         });
 
 }
+
+//==========================================
+// TARJETA DE CONFIRMACIÓN (éxito o error)
+//==========================================
+
+function mostrarTarjetaExito(esExito, mensaje){
+
+    const overlay = document.getElementById("overlayExito");
+    const tarjeta = document.getElementById("tarjetaExito");
+    const titulo = document.getElementById("tituloTarjetaExito");
+    const cuerpo = document.getElementById("cuerpoTarjetaExito");
+    const svgCheck = document.querySelector("#circuloCheckExito svg");
+
+    tarjeta.className = "tarjetaExito" + (esExito ? "" : " error");
+
+    if(esExito){
+        titulo.innerHTML = "¡Registrado correctamente!";
+        svgCheck.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+    } else {
+        titulo.innerHTML = "No se pudo registrar";
+        svgCheck.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
+    }
+
+    cuerpo.innerHTML = mensaje;
+    overlay.className = "overlayExito mostrar";
+    document.getElementById("mensaje").innerHTML = "";
+
+}
+
+function cerrarTarjetaExito(){
+    document.getElementById("overlayExito").className = "overlayExito";
+}
