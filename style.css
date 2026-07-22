@@ -699,3 +699,102 @@ padding:12px 6px;
 }
 
 }
+/*======================================
+TARJETA DE ÉXITO (overlay con check)
+======================================*/
+
+.overlayExito{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(10,61,145,.55);
+    z-index:999;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.overlayExito.mostrar{
+    display:flex;
+}
+
+.tarjetaExito{
+    background:white;
+    border-radius:24px;
+    padding:40px 30px;
+    max-width:340px;
+    width:100%;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.3);
+    animation:apareceTarjeta .25s ease-out;
+}
+
+.tarjetaExito.error .circuloCheck{
+    background:#FDEDEC;
+}
+
+.tarjetaExito.error .circuloCheck svg{
+    stroke:#D93025;
+}
+
+@keyframes apareceTarjeta{
+    from{ transform:scale(.85); opacity:0; }
+    to{ transform:scale(1); opacity:1; }
+}
+
+.circuloCheck{
+    width:90px;
+    height:90px;
+    border-radius:50%;
+    background:#DDF5E3;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0 auto 20px;
+    animation:apareceCirculo .35s ease-out;
+}
+
+@keyframes apareceCirculo{
+    from{ transform:scale(0); }
+    to{ transform:scale(1); }
+}
+
+.circuloCheck svg{
+    stroke:#1D9B3C;
+    width:48px;
+    height:48px;
+}
+
+.tituloTarjetaExito{
+    font-size:22px;
+    font-weight:bold;
+    color:#0A3D91;
+    margin-bottom:8px;
+}
+
+.tarjetaExito.error .tituloTarjetaExito{
+    color:#D93025;
+}
+
+.cuerpoTarjetaExito{
+    font-size:16px;
+    color:#333;
+    line-height:1.4;
+    margin-bottom:25px;
+}
+
+.btnCerrarTarjeta{
+    width:100%;
+    padding:16px;
+    border:none;
+    border-radius:12px;
+    background:#0A3D91;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.tarjetaExito.error .btnCerrarTarjeta{
+    background:#D93025;
+}
