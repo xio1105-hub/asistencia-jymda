@@ -798,3 +798,18 @@ TARJETA DE ÉXITO (overlay con check)
 .tarjetaExito.error .btnCerrarTarjeta{
     background:#D93025;
 }
+
+.iconoTab{
+    width:18px;
+    height:18px;
+    vertical-align:-4px;
+    margin-right:5px;
+}
+
+.iconoGPS{
+    width:18px;
+    height:18px;
+    vertical-align:-4px;
+    margin-right:6px;
+    color:#0A3D91;
+}
