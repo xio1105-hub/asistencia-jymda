@@ -1,5 +1,5 @@
 //==========================================
-// NUEVO: WRAPPER DE LA API (reemplaza google.script.run)
+// WRAPPER DE LA API (reemplaza google.script.run)
 // Llama al doPost() de tu Apps Script (Registro de
 // Asistencia) mandando { accion, ... } y devuelve
 // una Promise con el mismo "data" que antes recibían
@@ -32,13 +32,35 @@ function llamarAPI(accion, datosExtra){
 }
 
 //==========================================
+// CONFIGURACIÓN / ESTADO GENERAL
+//==========================================
+
+let trabajadores = [];
+
+// Estado del mapa
+let mapaLeaflet = null;
+let circuloUbicacion = null;
+let circuloPrecision = null;
+let circulosZonas = [];
+let zonasCache = null;
+
+// Estado de calibración GPS
+let watchIdGPS = null;
+let gpsListo = false;
+const UMBRAL_PRECISION_METROS = 10;
+let timeoutCalibracionGPS = null;
+const TIEMPO_MAXIMO_CALIBRACION_MS = 30000;
+
+// Candados combinados para habilitar/deshabilitar botones
+let horarioBloqueado = false;
+let dispositivoBloqueado = false;
+
+//==========================================
 // ID DE DISPOSITIVO
 // Se genera una sola vez y se guarda en este celular.
 // Sirve para vincular la cuenta del trabajador a su
 // propio equipo y evitar que otra persona marque por él.
 //==========================================
-
-let trabajadores = [];
 
 function obtenerDeviceId(){
 
@@ -82,7 +104,7 @@ window.onload = function(){
         .addEventListener("blur",function(){
             const valor = this.value.trim();
             if(valor!==""){
-                verificarDispositivoYcontinuar(valor, consultarProgramacion);
+                verificarDispositivoYcontinuar(valor, alSeleccionarTrabajador);
             }
         });
 
@@ -100,6 +122,21 @@ function registrarServiceWorker(){
             console.warn("No se pudo registrar el service worker:", err);
         });
     }
+
+}
+
+//==========================================
+// Se ejecuta cuando ya se confirmó el
+// dispositivo y se seleccionó un trabajador válido
+// en la pestaña "Registrar Asistencia"
+//==========================================
+
+function alSeleccionarTrabajador(nombre){
+
+    dispositivoBloqueado = false;
+
+    consultarProgramacion(nombre);
+    iniciarMapaUbicacion(nombre);
 
 }
 
@@ -166,8 +203,10 @@ function buscarTrabajador(){
 
     lista.innerHTML="";
 
-    // Si borra o cambia el nombre, ocultamos la programación anterior
+    dispositivoBloqueado = false;
+
     ocultarProgramacion();
+    ocultarMapa();
 
     if(texto.length<2){
 
@@ -212,7 +251,7 @@ function buscarTrabajador(){
 
             lista.style.display="none";
 
-            verificarDispositivoYcontinuar(nombre, consultarProgramacion);
+            verificarDispositivoYcontinuar(nombre, alSeleccionarTrabajador);
 
         };
 
@@ -259,8 +298,10 @@ function mostrarBloqueoDispositivo(mensaje){
     caja.innerHTML = "🚫 " + mensaje;
     caja.style.display = "block";
 
-    document.querySelector(".btnIngreso").disabled = true;
-    document.querySelector(".btnSalida").disabled = true;
+    dispositivoBloqueado = true;
+    actualizarEstadoBotones();
+
+    ocultarMapa();
 
     // Y también la pestaña de Mi Programación, por si la usa desde ahí
     document.getElementById("resultadoProgramacion").style.display = "flex";
@@ -322,18 +363,16 @@ function consultarProgramacion(nombre){
 function mostrarProgramacion(datos){
 
     const caja = document.getElementById("programacionHoy");
-    const btnIngreso = document.querySelector(".btnIngreso");
-    const btnSalida = document.querySelector(".btnSalida");
-
-    // Por defecto, habilitados
-    btnIngreso.disabled = false;
-    btnSalida.disabled = false;
 
     if(!datos){
 
         caja.className="sinAsignar";
-        caja.innerHTML="⚠️ No tienes una actividad programada para hoy.";
+        caja.innerHTML="No tienes una actividad programada para hoy.";
         caja.style.display="block";
+
+        horarioBloqueado = false;
+        actualizarEstadoBotones();
+
         return;
 
     }
@@ -346,8 +385,8 @@ function mostrarProgramacion(datos){
             "<br><small>No corresponde registrar asistencia.</small>";
         caja.style.display="block";
 
-        btnIngreso.disabled = true;
-        btnSalida.disabled = true;
+        horarioBloqueado = true;
+        actualizarEstadoBotones();
 
         return;
 
@@ -371,6 +410,9 @@ function mostrarProgramacion(datos){
     caja.innerHTML=texto;
     caja.style.display="block";
 
+    horarioBloqueado = false;
+    actualizarEstadoBotones();
+
 }
 
 function ocultarProgramacion(){
@@ -380,8 +422,250 @@ function ocultarProgramacion(){
     caja.innerHTML="";
     caja.className="";
 
-    document.querySelector(".btnIngreso").disabled=false;
-    document.querySelector(".btnSalida").disabled=false;
+    horarioBloqueado = false;
+    actualizarEstadoBotones();
+
+}
+
+//==========================================
+// CONTROL COMBINADO DE LOS BOTONES
+// Los botones solo se habilitan si:
+// - el dispositivo no está bloqueado
+// - el horario de hoy no es una Incidencia
+// - el GPS ya se calibró (precisión <= umbral)
+//==========================================
+
+function actualizarEstadoBotones(){
+
+    const bloqueado = dispositivoBloqueado || horarioBloqueado || !gpsListo;
+
+    document.querySelector(".btnIngreso").disabled = bloqueado;
+    document.querySelector(".btnSalida").disabled = bloqueado;
+
+}
+
+//==========================================
+// MAPA DE ZONA (verde) + UBICACIÓN CALIBRÁNDOSE (azul)
+//==========================================
+
+function iniciarMapaUbicacion(nombre){
+
+    const caja = document.getElementById("mapaZona");
+    const badge = document.getElementById("precisionGPS");
+
+    caja.style.display = "block";
+    caja.innerHTML = "<div class='loader'></div>";
+
+    gpsListo = false;
+    actualizarEstadoBotones();
+
+    badge.style.display = "block";
+    badge.className = "precisionGPS calibrando";
+    badge.innerHTML = "📡 Calibrando ubicación...";
+
+    if(!navigator.geolocation){
+        caja.innerHTML = "<p class='mensajeMapa' style='color:#D93025;'>El dispositivo no tiene GPS.</p>";
+        badge.className = "precisionGPS error";
+        badge.innerHTML = "⚠️ Este dispositivo no tiene GPS.";
+        return;
+    }
+
+    detenerCalibracionGPS(); // por si ya había una calibración corriendo
+
+    watchIdGPS = navigator.geolocation.watchPosition(
+
+        function(posicion){
+            pintarMapaZonas(posicion);
+        },
+
+        function(){
+            caja.innerHTML = "<p class='mensajeMapa' style='color:#D93025;'>No fue posible obtener la ubicación.</p>";
+            badge.className = "precisionGPS error";
+            badge.innerHTML = "⚠️ No se pudo obtener tu ubicación.";
+        },
+
+        {
+            enableHighAccuracy:true,
+            timeout:20000,
+            maximumAge:0
+        }
+
+    );
+    timeoutCalibracionGPS = setTimeout(forzarHabilitacionPorTimeout, TIEMPO_MAXIMO_CALIBRACION_MS);
+}
+
+function detenerCalibracionGPS(){
+
+    if(watchIdGPS !== null){
+        navigator.geolocation.clearWatch(watchIdGPS);
+        watchIdGPS = null;
+    }
+
+}
+
+function detenerTimeoutCalibracion(){
+
+    if(timeoutCalibracionGPS !== null){
+        clearTimeout(timeoutCalibracionGPS);
+        timeoutCalibracionGPS = null;
+    }
+
+}
+
+function forzarHabilitacionPorTimeout(){
+
+    if(gpsListo) return; // ya se calibró bien, no hace falta forzar nada
+
+    detenerCalibracionGPS();
+
+    const badge = document.getElementById("precisionGPS");
+    badge.className = "precisionGPS calibrando";
+    badge.innerHTML = "⚠️ No se logró una precisión ideal tras 30 segundos. Puedes registrar, pero verifica tu ubicación en el mapa.";
+
+    gpsListo = true;
+    actualizarEstadoBotones();
+
+}
+
+function pintarMapaZonas(posicion){
+
+    const lat = posicion.coords.latitude;
+    const lng = posicion.coords.longitude;
+    const precision = posicion.coords.accuracy;
+
+    const caja = document.getElementById("mapaZona");
+    const badge = document.getElementById("precisionGPS");
+
+    if(!mapaLeaflet){
+
+        caja.innerHTML = ""; // limpia el loader antes de que Leaflet tome el div
+
+        mapaLeaflet = L.map("mapaZona").setView([lat, lng], 17);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom:19,
+            attribution:"© OpenStreetMap"
+        }).addTo(mapaLeaflet);
+
+        // Las zonas se piden una sola vez y se cachean (no en cada actualización de GPS)
+        if(zonasCache){
+            pintarZonasEnMapa(zonasCache);
+        } else {
+            llamarAPI("obtenerZonas")
+                .then(function(zonas){
+                    zonasCache = zonas;
+                    pintarZonasEnMapa(zonas);
+                })
+                .catch(function(){});
+        }
+
+    } else {
+
+        mapaLeaflet.setView([lat, lng], mapaLeaflet.getZoom());
+
+    }
+
+    if(circuloUbicacion){
+        mapaLeaflet.removeLayer(circuloUbicacion);
+    }
+    if(circuloPrecision){
+        mapaLeaflet.removeLayer(circuloPrecision);
+    }
+
+    const precisionOk = precision <= UMBRAL_PRECISION_METROS;
+    const colorPunto = precisionOk ? "#1E88E5" : "#FBC02D";
+    const colorBorde = precisionOk ? "#1565C0" : "#F9A825";
+
+    // Círculo azul (o amarillo mientras calibra): ubicación real del trabajador
+    circuloUbicacion = L.circleMarker([lat, lng], {
+        radius:8,
+        color:colorBorde,
+        fillColor:colorPunto,
+        fillOpacity:1,
+        weight:2
+    }).addTo(mapaLeaflet).bindPopup("Tu ubicación");
+
+    circuloPrecision = L.circle([lat, lng], {
+        radius: precision,
+        color:colorBorde,
+        fillColor:colorPunto,
+        fillOpacity:0.15,
+        weight:1
+    }).addTo(mapaLeaflet);
+
+    const metros = Math.round(precision);
+
+    if(precisionOk){
+
+        badge.className = "precisionGPS lista";
+        badge.innerHTML = "✅ Precisión buena: " + metros + " m";
+
+        gpsListo = true;
+        actualizarEstadoBotones();
+
+        detenerCalibracionGPS(); // ya no hace falta seguir escuchando
+        detenerTimeoutCalibracion();
+
+    } else {
+
+        badge.className = "precisionGPS calibrando";
+        badge.innerHTML = "📡 Calibrando... Precisión actual: " + metros + " m (se necesita ≤ " + UMBRAL_PRECISION_METROS + " m)";
+
+        gpsListo = false;
+        actualizarEstadoBotones();
+
+    }
+
+}
+
+function pintarZonasEnMapa(zonas){
+
+    circulosZonas.forEach(function(c){
+        mapaLeaflet.removeLayer(c);
+    });
+    circulosZonas = [];
+
+    zonas.forEach(function(zona){
+
+        const circulo = L.circle([zona.lat, zona.lng], {
+            radius: zona.radio,
+            color:"#1D9B3C",
+            fillColor:"#1D9B3C",
+            fillOpacity:0.15,
+            weight:2
+        }).addTo(mapaLeaflet).bindPopup(zona.nombre);
+
+        circulosZonas.push(circulo);
+
+    });
+
+}
+
+function ocultarMapa(){
+
+    detenerCalibracionGPS();
+    detenerTimeoutCalibracion();
+
+    const caja = document.getElementById("mapaZona");
+    caja.style.display = "none";
+    caja.innerHTML = "";
+
+    const badge = document.getElementById("precisionGPS");
+    badge.style.display = "none";
+    badge.innerHTML = "";
+
+    if(mapaLeaflet){
+        mapaLeaflet.remove();
+        mapaLeaflet = null;
+        circuloUbicacion = null;
+        circuloPrecision = null;
+        circulosZonas = [];
+    }
+
+    zonasCache = null;
+
+    gpsListo = false;
+    actualizarEstadoBotones();
 
 }
 
@@ -495,7 +779,7 @@ function pintarTarjetaDia(idTarjeta, tituloDia, datos){
     const tarjeta = document.getElementById(idTarjeta);
 
     let clase = "sinAsignar";
-    let cuerpo = "⚠️ No tienes una actividad programada para " + tituloDia.toLowerCase() + ".";
+    let cuerpo = "No tienes una actividad programada para " + tituloDia.toLowerCase() + ".";
 
     if(datos){
 
@@ -621,6 +905,7 @@ function registrarServidor(posicion,tipo){
                 document.getElementById("nombre").value="";
                 document.getElementById("listaNombres").style.display="none";
                 ocultarProgramacion();
+                ocultarMapa();
 
             }else{
 
