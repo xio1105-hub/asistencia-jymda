@@ -831,6 +831,10 @@ function registrar(tipo){
 
     }
 
+    // Evitar doble clic mientras se procesa el registro
+    document.querySelector(".btnIngreso").disabled = true;
+    document.querySelector(".btnSalida").disabled = true;
+
     document.getElementById("mensaje").innerHTML =
     '<div class="loader"></div><br>Obteniendo ubicación...';
 
@@ -855,6 +859,8 @@ function registrar(tipo){
 
             document.getElementById("mensaje").innerHTML =
             "<span class='error'>No fue posible obtener la ubicación.</span>";
+
+            actualizarEstadoBotones(); 
 
         },
 
@@ -890,7 +896,8 @@ function registrarServidor(posicion,tipo){
         lat : lat,
         lng : lng,
         tipo : tipo,
-        deviceId : obtenerDeviceId()
+        deviceId : obtenerDeviceId(),
+        precision : Math.round(posicion.coords.accuracy)  
 
     };
 
@@ -911,6 +918,8 @@ function registrarServidor(posicion,tipo){
 
                 mostrarTarjetaExito(false, respuesta.mensaje);
 
+                actualizarEstadoBotones(); // NUEVO
+
             }
 
         })
@@ -918,6 +927,8 @@ function registrarServidor(posicion,tipo){
         .catch(function(err){
 
             mostrarTarjetaExito(false, err.message);
+
+            actualizarEstadoBotones(); // NUEVO
 
         });
 
