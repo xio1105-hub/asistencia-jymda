@@ -4,7 +4,7 @@
 // app (el visor/formulario) sin conexión, aunque los datos siempre
 // necesitan internet porque viven en tu Google Sheet.
 
-const CACHE_NAME = "asistencia-jymda-v3";
+const CACHE_NAME = "asistencia-jymda-v4";
 
 const ARCHIVOS_BASICOS = [
   "./",
